@@ -46,9 +46,8 @@ class nnUNetTrainerV2(nnUNetTrainer):
                  unpack_data=True, deterministic=True, fp16=False):
         super().__init__(plans_file, fold, output_folder, dataset_directory, batch_dice, stage, unpack_data,
                          deterministic, fp16)
-        self.max_num_epochs = 600
-        # self.initial_lr = 1e-2
-        self.initial_lr = 3e-4
+        self.max_num_epochs = 5000
+        self.initial_lr = 1e-2
         self.deep_supervision_scales = None
         self.ds_loss_weights = None
 
@@ -165,16 +164,9 @@ class nnUNetTrainerV2(nnUNetTrainer):
 
     def initialize_optimizer_and_scheduler(self):
         assert self.network is not None, "self.initialize_network must be called first"
-        # self.optimizer = torch.optim.SGD(self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay,
-        #                                  momentum=0.99, nesterov=True)
-        # self.lr_scheduler = None
-        '''   nnUNetTrainerV2_Adam_ReduceOnPlateau   '''
-        self.optimizer = torch.optim.Adam(self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay,
-                                          amsgrad=True)
-        self.lr_scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min', factor=0.2,
-                                                           patience=self.lr_scheduler_patience,
-                                                           verbose=True, threshold=self.lr_scheduler_eps,
-                                                           threshold_mode="abs")
+        self.optimizer = torch.optim.SGD(self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay,
+                                         momentum=0.99, nesterov=True)
+        self.lr_scheduler = None
 
     def run_online_evaluation(self, output, target):
         """
@@ -196,10 +188,6 @@ class nnUNetTrainerV2(nnUNetTrainer):
         We need to wrap this because we need to enforce self.network.do_ds = False for prediction
         """
         ds = self.network.do_ds
-        if do_mirroring:
-            print("WARNING! do_mirroring was True but we cannot do that because we trained without mirroring. "
-                  "do_mirroring was set to False")
-        do_mirroring = False
         self.network.do_ds = False
         ret = super().validate(do_mirroring=do_mirroring, use_sliding_window=use_sliding_window, step_size=step_size,
                                save_softmax=save_softmax, use_gaussian=use_gaussian,
@@ -400,8 +388,6 @@ class nnUNetTrainerV2(nnUNetTrainer):
         self.data_aug_params['patch_size_for_spatialtransform'] = self.patch_size
 
         self.data_aug_params["num_cached_per_thread"] = 2
-        # save prediction time
-        self.data_aug_params["do_mirror"] = False
 
     def maybe_update_lr(self, epoch=None):
         """
@@ -413,24 +399,12 @@ class nnUNetTrainerV2(nnUNetTrainer):
         :param epoch:
         :return:
         """
-        # if epoch is None:
-        #     ep = self.epoch + 1
-        # else:
-        #     ep = epoch
-        # self.optimizer.param_groups[0]['lr'] = poly_lr(ep, self.max_num_epochs, self.initial_lr, 0.9)
-        # self.print_to_log_file("lr:", np.round(self.optimizer.param_groups[0]['lr'], decimals=6))
-        '''   nnUNetTrainerV2_Adam_ReduceOnPlateau   '''
-        # maybe update learning rate
-        if self.lr_scheduler is not None:
-            assert isinstance(self.lr_scheduler, (lr_scheduler.ReduceLROnPlateau, lr_scheduler._LRScheduler))
-
-            if isinstance(self.lr_scheduler, lr_scheduler.ReduceLROnPlateau):
-                # lr scheduler is updated with moving average val loss. should be more robust
-                if self.epoch > 0 and self.train_loss_MA is not None:  # otherwise self.train_loss_MA is None
-                    self.lr_scheduler.step(self.train_loss_MA)
-            else:
-                self.lr_scheduler.step(self.epoch + 1)
-        self.print_to_log_file("lr is now (scheduler) %s" % str(self.optimizer.param_groups[0]['lr']))
+        if epoch is None:
+            ep = self.epoch + 1
+        else:
+            ep = epoch
+        self.optimizer.param_groups[0]['lr'] = poly_lr(ep, self.max_num_epochs, self.initial_lr, 0.9)
+        self.print_to_log_file("lr:", np.round(self.optimizer.param_groups[0]['lr'], decimals=6))
 
     def on_epoch_end(self):
         """

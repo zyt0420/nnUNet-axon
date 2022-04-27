@@ -173,7 +173,7 @@ def main():
                 # we start a new training. If pretrained_weights are set, use them
                 load_pretrained_weights(trainer.network, args.pretrained_weights)
             else:
-                # new training without pretraine weights, do nothing
+                # new training without pretrained weights, do nothing
                 pass
 
             trainer.run_training()
