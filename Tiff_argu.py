@@ -194,7 +194,7 @@ def make_data(base, task_id, task_name, spacing, n_samples, input_dim, data_mix,
         vpaths = os.listdir(val_volume_path)
         for i, vpath in enumerate(vpaths):
             case = str(vpath).split(".")[0].split("-")[1]
-            volume = join(val_volume_path, "volume-" + case + ".tiff")
+            volume = join(val_volume_path, "volume-" + case + ".tif")
             label = None
             casename = task_name + case
             img_out_base = join(imagests, casename)
@@ -487,6 +487,7 @@ def prepare_task(base, task_id, task_name, spacing):
     train_label_path = join(base, "train", "labels")
     val_volume_path = join(base, "val", "volumes")
 
+    '''
     tpaths = os.listdir(train_volume_path)
     for i, tpath in enumerate(tpaths):
         case = str(tpath).split(".")[0].split("-")[1]
@@ -502,6 +503,7 @@ def prepare_task(base, task_id, task_name, spacing):
         train_patient_names.append(casename)
         # if len(train_patient_names) >= 10:
         #     break
+    '''
 
     vpaths = os.listdir(val_volume_path)
     for i, vpath in enumerate(vpaths):
@@ -516,6 +518,13 @@ def prepare_task(base, task_id, task_name, spacing):
         test_patient_names.append(casename)
         # if len(test_patient_names) >= 6:
         #     break
+    print("Test cases finish.")
+
+    tpaths = os.listdir(labelstr)
+    for i, tpath in enumerate(tpaths):
+        case = str(tpath).split(".")[0]
+        train_patient_names.append(case)
+    print("Train cases finish.")
 
     _ = [i.get() for i in res]
 
@@ -548,14 +557,16 @@ def prepare_task(base, task_id, task_name, spacing):
 
 
 if __name__ == "__main__":
-    base = "/media/root/data4/zyt/train/dn_3brain/"
+    base = "/media/root/data4/zyt/train/Renlab/"
     source = "/media/root/data4/zyt/train/Renlab/"
-    task_id = 711
-    task_name = 'DN_match_Renlab_cutmix'
+    task_id = 7091
+    task_name = 'Renlab_match_cutmix'
     spacing = (1, 0.126, 0.126)
     histogram_match_data(base, source, task_id, task_name, spacing, 10, 128,
                          True, True, True, True)  # artifact mix, train, histogram match, cutmix
     # make_data(source, task_id, task_name, spacing, 10, 128, True, True)  # for train
+    # prepare_task(base, task_id, task_name, spacing)
+
 '''
     task_name = "Task0701_DNBrains"
     labelsTr = join(nnUNet_raw_data, task_name, "labelsTr")

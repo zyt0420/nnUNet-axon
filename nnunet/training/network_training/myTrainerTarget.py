@@ -37,7 +37,7 @@ from batchgenerators.utilities.file_and_folder_operations import *
 from torch.optim import lr_scheduler
 
 
-class nnUNetTrainerV2(nnUNetTrainer):
+class myTrainerTarget(nnUNetTrainer):
     """
     Info for Fabian: same as internal nnUNetTrainerV2_2
     """
@@ -46,7 +46,7 @@ class nnUNetTrainerV2(nnUNetTrainer):
                  unpack_data=True, deterministic=True, fp16=False):
         super().__init__(plans_file, fold, output_folder, dataset_directory, batch_dice, stage, unpack_data,
                          deterministic, fp16)
-        self.max_num_epochs = 550
+        self.max_num_epochs = 100
         # self.initial_lr = 1e-2
         self.initial_lr = 3e-4
         self.deep_supervision_scales = None
@@ -142,12 +142,14 @@ class nnUNetTrainerV2(nnUNetTrainer):
         if self.threeD:
             conv_op = nn.Conv3d
             dropout_op = nn.Dropout3d
-            norm_op = nn.InstanceNorm3d
+            # norm_op = nn.InstanceNorm3d
+            norm_op = nn.BatchNorm3d
 
         else:
             conv_op = nn.Conv2d
             dropout_op = nn.Dropout2d
-            norm_op = nn.InstanceNorm2d
+            # norm_op = nn.InstanceNorm2d
+            norm_op = nn.BatchNorm2d
 
         norm_op_kwargs = {'eps': 1e-5, 'affine': True}
         dropout_op_kwargs = {'p': 0, 'inplace': True}
@@ -165,14 +167,18 @@ class nnUNetTrainerV2(nnUNetTrainer):
 
     def initialize_optimizer_and_scheduler(self):
         assert self.network is not None, "self.initialize_network must be called first"
-        # self.optimizer = torch.optim.SGD(self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay,
-        #                                  momentum=0.99, nesterov=True)
-        # self.lr_scheduler = None
-        '''   nnUNetTrainerV2_Adam_ReduceOnPlateau   '''
-        self.optimizer = torch.optim.Adam(self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay,
-                                          amsgrad=True)
-        self.lr_scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min', factor=0.2,
-                                                           patience=self.lr_scheduler_patience,
+        for idx in self.network.named_modules():
+            for param in idx[1].parameters():
+                param.requires_grad = False
+            # print(idx[0])
+            # if 'bn' in idx[0]:  # Batch Normalization 只训练bn层
+            if isinstance(idx[1], nn.BatchNorm3d):
+                for param in idx[1].parameters():
+                    param.requires_grad = True
+        self.optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.network.parameters()),
+                                          self.initial_lr, weight_decay=1e-4)
+        # self.optimizer = torch.optim.Adam(self.network.parameters(), self.initial_lr, weight_decay=1e-4)
+        self.lr_scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min', factor=0.5, patience=20,
                                                            verbose=True, threshold=self.lr_scheduler_eps,
                                                            threshold_mode="abs")
 

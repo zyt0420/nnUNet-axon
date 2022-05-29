@@ -17,15 +17,21 @@ from myutils import *
 # print("转类型：\n")
 # print(img)
 
-base = "/media/root/data4/zyt/validate/162245/"
-v_path = os.path.join(base, "162245_whole.tiff")
-l_path = os.path.join(base, "whole_label", "label.tiff")
-v_out_path = "/media/root/data4/zyt/validate/162245_nii/whole/162245_whole_0000.nii.gz"
-l_out_path = "/media/root/data4/zyt/validate/162245_nii/162245_label.nii.gz"
-itk_v = load_tiff_to_nifti(v_path)
-sitk.WriteImage(itk_v, v_out_path)
-itk_l = load_tiff_to_nifti(l_path)
-sitk.WriteImage(itk_l, l_out_path)
+# ==================== tiff to nifti ==================== #
+# base = "/media/root/data4/zyt/validate/141410/"
+# # v_path = os.path.join(base, "162245_whole.tiff")
+# l_path = os.path.join(base, "label_rect.tiff")
+# # v_out_path = "/media/root/data4/zyt/validate/162245_nii/whole/162245_whole_0000.nii.gz"
+# l_out_path = "/media/root/data4/zyt/validate/141410_nii/141410_label_rect.nii.gz"
+# # itk_v = load_tiff_to_nifti(v_path)
+# # sitk.WriteImage(itk_v, v_out_path)
+# itk_l = load_tiff_to_nifti(l_path)
+# sitk.WriteImage(itk_l, l_out_path)
+
+# ==================== nifti to tiff ==================== #
+base = '/media/root/data4/zyt/validate/141410_nii/test/whole/nnunet7090/141410_whole.nii.gz'
+out = '/media/root/data4/zyt/validate/141410_nii/test/whole/nnunet7090/141410_nnunet_pred.tiff'
+load_nifti_to_tiff(base, out)
 
 '''
 base = "/media/root/data4/zyt/validate/141410/"

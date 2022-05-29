@@ -88,19 +88,22 @@ def eval_two_volume_dirs_maxpool(target, root, data, pool_kernel, threshold, dev
             'recall':recall,
             'score':dice_score}
 
+
 def avg(num, total):
     return total / num
 
+
 if __name__ == "__main__":
-    # val_root = "/media/root/data4/zyt/validate/155829_nii/155829_label.nii.gz"
-    # val_target = "/media/root/data4/zyt/validate/155829_nii/test/whole/nnunet708/155829_whole.nii.gz"
+    val_root = "/media/root/data4/zyt/validate/155829_nii/155829_label.nii.gz"
+    val_target = "/media/root/data4/zyt/validate/155829_nii/test/whole/nnunet705_16G_en/155829_whole.nii.gz"
     # val_root = "/media/root/data4/zyt/validate/162245_nii/162245_label.nii.gz"
     # val_target = "/media/root/data4/zyt/validate/162245_nii/test/whole/nnunet705/162245_whole.nii.gz"
-    val_root = "/media/root/data4/zyt/validate/141410_nii/141410_label.nii.gz"
-    val_target = "/media/root/data4/zyt/validate/141410_nii/test/whole/nnunet710_0b/141410_whole.nii.gz"
+    # val_root = "/media/root/data4/zyt/validate/141410_nii/141410_label.nii.gz"
+    # val_root = "/media/root/data4/zyt/validate/141410_nii/141410_label_rect.nii.gz"
+    # val_target = "/media/root/data4/zyt/validate/141410_nii/test/whole/nnunet705_s1/141410_whole.nii.gz"
     kernel_size = 10  # maxpooling kernel size
     threshold = 125  # probability threshold of the positive class, no need for nnunet prediction
-    device = torch.device('cuda:2')
+    device = torch.device('cuda:3')
     loss = eval_two_volumes_maxpool(val_target, val_root, kernel_size, device)
 '''
     # data_root = "/media/root/data4/zyt/validate/155829_nii/labels/"
