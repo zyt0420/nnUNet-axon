@@ -63,19 +63,19 @@ def get_moreDA_augmentation(dataloader_train, dataloader_val, patch_size, params
         patch_size_spatial = patch_size
         ignore_axes = None
 
-    # tr_transforms.append(SpatialTransform(
-    #     patch_size_spatial, patch_center_dist_from_border=None,
-    #     do_elastic_deform=params.get("do_elastic"), alpha=params.get("elastic_deform_alpha"),
-    #     sigma=params.get("elastic_deform_sigma"),
-    #     do_rotation=params.get("do_rotation"), angle_x=params.get("rotation_x"), angle_y=params.get("rotation_y"),
-    #     angle_z=params.get("rotation_z"), p_rot_per_axis=params.get("rotation_p_per_axis"),
-    #     do_scale=params.get("do_scaling"), scale=params.get("scale_range"),
-    #     border_mode_data=params.get("border_mode_data"), border_cval_data=0, order_data=order_data,
-    #     border_mode_seg="constant", border_cval_seg=border_val_seg,
-    #     order_seg=order_seg, random_crop=params.get("random_crop"), p_el_per_sample=params.get("p_eldef"),
-    #     p_scale_per_sample=params.get("p_scale"), p_rot_per_sample=params.get("p_rot"),
-    #     independent_scale_for_each_axis=params.get("independent_scale_factor_for_each_axis")
-    # ))
+    tr_transforms.append(SpatialTransform(
+        patch_size_spatial, patch_center_dist_from_border=None,
+        do_elastic_deform=params.get("do_elastic"), alpha=params.get("elastic_deform_alpha"),
+        sigma=params.get("elastic_deform_sigma"),
+        do_rotation=params.get("do_rotation"), angle_x=params.get("rotation_x"), angle_y=params.get("rotation_y"),
+        angle_z=params.get("rotation_z"), p_rot_per_axis=params.get("rotation_p_per_axis"),
+        do_scale=params.get("do_scaling"), scale=params.get("scale_range"),
+        border_mode_data=params.get("border_mode_data"), border_cval_data=0, order_data=order_data,
+        border_mode_seg="constant", border_cval_seg=border_val_seg,
+        order_seg=order_seg, random_crop=params.get("random_crop"), p_el_per_sample=params.get("p_eldef"),
+        p_scale_per_sample=params.get("p_scale"), p_rot_per_sample=params.get("p_rot"),
+        independent_scale_for_each_axis=params.get("independent_scale_factor_for_each_axis")
+    ))
 
     if params.get("dummy_2D"):
         tr_transforms.append(Convert2DTo3DTransform())
@@ -116,26 +116,26 @@ def get_moreDA_augmentation(dataloader_train, dataloader_val, patch_size, params
 
     tr_transforms.append(RemoveLabelTransform(-1, 0))
 
-    # if params.get("move_last_seg_chanel_to_data") is not None and params.get("move_last_seg_chanel_to_data"):
-    #     tr_transforms.append(MoveSegAsOneHotToData(1, params.get("all_segmentation_labels"), 'seg', 'data'))
-    #     if params.get("cascade_do_cascade_augmentations") is not None and params.get(
-    #             "cascade_do_cascade_augmentations"):
-    #         if params.get("cascade_random_binary_transform_p") > 0:
-    #             tr_transforms.append(ApplyRandomBinaryOperatorTransform(
-    #                 channel_idx=list(range(-len(params.get("all_segmentation_labels")), 0)),
-    #                 p_per_sample=params.get("cascade_random_binary_transform_p"),
-    #                 key="data",
-    #                 strel_size=params.get("cascade_random_binary_transform_size"),
-    #                 p_per_label=params.get("cascade_random_binary_transform_p_per_label")))
-    #         if params.get("cascade_remove_conn_comp_p") > 0:
-    #             tr_transforms.append(
-    #                 RemoveRandomConnectedComponentFromOneHotEncodingTransform(
-    #                     channel_idx=list(range(-len(params.get("all_segmentation_labels")), 0)),
-    #                     key="data",
-    #                     p_per_sample=params.get("cascade_remove_conn_comp_p"),
-    #                     fill_with_other_class_p=params.get("cascade_remove_conn_comp_max_size_percent_threshold"),
-    #                     dont_do_if_covers_more_than_X_percent=params.get(
-    #                         "cascade_remove_conn_comp_fill_with_other_class_p")))
+    if params.get("move_last_seg_chanel_to_data") is not None and params.get("move_last_seg_chanel_to_data"):
+        tr_transforms.append(MoveSegAsOneHotToData(1, params.get("all_segmentation_labels"), 'seg', 'data'))
+        if params.get("cascade_do_cascade_augmentations") is not None and params.get(
+                "cascade_do_cascade_augmentations"):
+            if params.get("cascade_random_binary_transform_p") > 0:
+                tr_transforms.append(ApplyRandomBinaryOperatorTransform(
+                    channel_idx=list(range(-len(params.get("all_segmentation_labels")), 0)),
+                    p_per_sample=params.get("cascade_random_binary_transform_p"),
+                    key="data",
+                    strel_size=params.get("cascade_random_binary_transform_size"),
+                    p_per_label=params.get("cascade_random_binary_transform_p_per_label")))
+            if params.get("cascade_remove_conn_comp_p") > 0:
+                tr_transforms.append(
+                    RemoveRandomConnectedComponentFromOneHotEncodingTransform(
+                        channel_idx=list(range(-len(params.get("all_segmentation_labels")), 0)),
+                        key="data",
+                        p_per_sample=params.get("cascade_remove_conn_comp_p"),
+                        fill_with_other_class_p=params.get("cascade_remove_conn_comp_max_size_percent_threshold"),
+                        dont_do_if_covers_more_than_X_percent=params.get(
+                            "cascade_remove_conn_comp_fill_with_other_class_p")))
 
     tr_transforms.append(RenameTransform('seg', 'target', True))
 
@@ -173,8 +173,8 @@ def get_moreDA_augmentation(dataloader_train, dataloader_val, patch_size, params
     if params.get("selected_seg_channels") is not None:
         val_transforms.append(SegChannelSelectionTransform(params.get("selected_seg_channels")))
 
-    # if params.get("move_last_seg_chanel_to_data") is not None and params.get("move_last_seg_chanel_to_data"):
-    #     val_transforms.append(MoveSegAsOneHotToData(1, params.get("all_segmentation_labels"), 'seg', 'data'))
+    if params.get("move_last_seg_chanel_to_data") is not None and params.get("move_last_seg_chanel_to_data"):
+        val_transforms.append(MoveSegAsOneHotToData(1, params.get("all_segmentation_labels"), 'seg', 'data'))
 
     val_transforms.append(RenameTransform('seg', 'target', True))
 

@@ -365,6 +365,12 @@ class nnUNetTrainerV2(nnUNetTrainer):
 
         if self.threeD:
             self.data_aug_params = default_3D_augmentation_params
+            # disable some augmentation
+            self.data_aug_params['do_rotation'] = False
+            self.data_aug_params['do_scaling'] = False
+            self.data_aug_params['do_elastic'] = False
+            self.data_aug_params['do_gamma'] = False
+
             self.data_aug_params['rotation_x'] = (-30. / 360 * 2. * np.pi, 30. / 360 * 2. * np.pi)
             self.data_aug_params['rotation_y'] = (-30. / 360 * 2. * np.pi, 30. / 360 * 2. * np.pi)
             self.data_aug_params['rotation_z'] = (-30. / 360 * 2. * np.pi, 30. / 360 * 2. * np.pi)
