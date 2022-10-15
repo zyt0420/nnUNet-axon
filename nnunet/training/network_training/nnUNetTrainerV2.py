@@ -46,7 +46,7 @@ class nnUNetTrainerV2(nnUNetTrainer):
                  unpack_data=True, deterministic=True, fp16=False):
         super().__init__(plans_file, fold, output_folder, dataset_directory, batch_dice, stage, unpack_data,
                          deterministic, fp16)
-        self.max_num_epochs = 550
+        self.max_num_epochs = 650
         # self.initial_lr = 1e-2
         self.initial_lr = 3e-4
         self.deep_supervision_scales = None
@@ -366,10 +366,10 @@ class nnUNetTrainerV2(nnUNetTrainer):
         if self.threeD:
             self.data_aug_params = default_3D_augmentation_params
             # disable some augmentation
-            self.data_aug_params['do_rotation'] = False
-            self.data_aug_params['do_scaling'] = False
-            self.data_aug_params['do_elastic'] = False
-            self.data_aug_params['do_gamma'] = False
+            # self.data_aug_params['do_rotation'] = False
+            # self.data_aug_params['do_scaling'] = False
+            # self.data_aug_params['do_elastic'] = False
+            # self.data_aug_params['do_gamma'] = False
 
             self.data_aug_params['rotation_x'] = (-30. / 360 * 2. * np.pi, 30. / 360 * 2. * np.pi)
             self.data_aug_params['rotation_y'] = (-30. / 360 * 2. * np.pi, 30. / 360 * 2. * np.pi)

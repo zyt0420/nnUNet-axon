@@ -86,7 +86,10 @@ def soft_cldice_f1(pred, target):
     cl_pred = soft_skeletonize(pred)
     # save = cl_pred.cpu().numpy()[0][0] * 255
     # tifffile.imsave('/media/root/data4/szy/validate/155829/whole_label/1.tiff', save.astype(np.uint8))
-    # tifffile.imsave('/media/root/data4/szy/validate/155829/whole_label/1.tiff', target.cpu().numpy()[0][0].astype(np.uint8))
-    recall = positive_intersection(target_skeleton, pred)
-    acc = positive_intersection(cl_pred, target)
-    return recall[0], acc[0]
+    # tifffile.imsave('/media/root/data4/szy/validate/155829/whole_label/1.tiff',
+    #                 target.cpu().numpy()[0][0].astype(np.uint8))
+    clrecall = positive_intersection(target_skeleton, pred)  # ClRecall
+    recall = positive_intersection(target, pred)
+    clacc = positive_intersection(cl_pred, target)
+    acc = positive_intersection(pred, target)
+    return clrecall[0], clacc[0], recall[0], acc[0]

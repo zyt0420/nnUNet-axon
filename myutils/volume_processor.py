@@ -7,6 +7,7 @@ import torch
 from PIL import Image
 from imgaug import augmenters as iaa
 from imgaug.augmentables.segmaps import SegmentationMapsOnImage
+from skimage import exposure
 
 
 def equal(im, flg_max=1, flg_min=0):
@@ -46,10 +47,10 @@ def random_weaken_contrast(im, mid_points, rad, sigma):
                    mid[1] - rad: mid[1] + rad,
                    mid[1] - rad: mid[1] + rad]
         mean = image.mean()
-        d = np.meshgrid(range(2 * rad),range(2 * rad), range(2 * rad))
+        d = np.meshgrid(range(2 * rad), range(2 * rad), range(2 * rad))
 
         matrix = ((d[0] - rad) ** 2 + (d[1] - rad) ** 2 + (d[2] - rad) ** 2) ** (1 / 2)
-    #     print(matrix.max())
+        # print(matrix.max())
         matrix[matrix > rad] = rad
 
         matrix = (1 - matrix / rad) * sigma
@@ -59,6 +60,31 @@ def random_weaken_contrast(im, mid_points, rad, sigma):
            mid[1] - rad: mid[1] + rad,
            mid[1] - rad: mid[1] + rad] = res
     return im
+
+
+def random_contrast_adjust(im, mid_points, rad, sigma):
+    for mid in mid_points:
+        image = im[mid[0] - rad: mid[0] + rad,
+                   mid[1] - rad: mid[1] + rad,
+                   mid[1] - rad: mid[1] + rad]
+        mean = image.mean()
+        d = np.meshgrid(range(2 * rad), range(2 * rad), range(2 * rad))
+
+        matrix = ((d[0] - rad) ** 2 + (d[1] - rad) ** 2 + (d[2] - rad) ** 2) ** 2  # enhance contrast
+        # print(matrix.max())
+        matrix[matrix > rad] = rad
+
+        matrix = (1 - matrix / rad) * sigma
+        res = image + matrix * (mean - image)
+
+        im[mid[0] - rad: mid[0] + rad,
+           mid[1] - rad: mid[1] + rad,
+           mid[1] - rad: mid[1] + rad] = res
+
+        # add gamma adjustment
+        rand = random.random()
+        im_gam = exposure.adjust_gamma(im, 2*rand)
+    return im_gam
 
 
 def contrast_augmentation(volume, label, rad=25, N=5, sigma=0.65):
@@ -71,10 +97,11 @@ def contrast_augmentation(volume, label, rad=25, N=5, sigma=0.65):
     except:
         return volume
     return random_weaken_contrast(volume, mid, rad, sigma)
+    # return random_contrast_adjust(volume, mid, rad, sigma)
 
 
 def torch_fliplr(x):
-    return torch.flipud(x.transpose(0,2)).transpose(0,2)
+    return torch.flipud(x.transpose(0, 2)).transpose(0, 2)
 
 
 def torch_dilation(tensor, iter):
@@ -111,7 +138,7 @@ class dataAugmentation():
             volume, label = self.seq(image=volumes, segmentation_maps=segmap)
             label = label.get_arr()
             label[label > 0] = 1
-            volume, label = self.crop.augment_images([volume, label])
+            # volume, label = self.crop.augment_images([volume, label])
             volume = contrast_augmentation(volume, label, N=4)
             return volume, label
         else:

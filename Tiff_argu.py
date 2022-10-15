@@ -230,8 +230,9 @@ def make_data(base, task_id, task_name, spacing, n_samples, input_dim, data_mix,
         p.close()
         p.join()
 
+
 def histogram_match_data(base, source, task_id, task_name, spacing, n_samples, input_dim,
-                         data_mix, flag, match_flag, cutmix):
+                         data_mix, flag, match_flag, cutmix, join):
     p = Pool(16)
     augment = myutils.dataAugmentation()
 
@@ -257,7 +258,6 @@ def histogram_match_data(base, source, task_id, task_name, spacing, n_samples, i
     datas_ori = []
     labels_ori = []
     data_path = join(base, 'train') if flag else join(base, 'val')
-    # data_path = join(base, 'val')
 
     volumes_folder_path = join(data_path, "volumes")
     labels_folder_path = join(data_path, "labels_sk") if flag else join(data_path, 'labels')
@@ -269,19 +269,17 @@ def histogram_match_data(base, source, task_id, task_name, spacing, n_samples, i
     artifacts_folder_path = data_path + '/artifacts/'
     artifacts_path = myutils.get_dir(artifacts_folder_path)
     if match_flag:
-        source_path = join(source, 'train') if flag else join(source, 'val')
+        source_path = join(source, 'train')  # # match to val cubes
         volumes_folder_path_s = join(source_path, "volumes")
         volumes_path_s = myutils.get_dir(volumes_folder_path_s)
+        labels_folder_path_s = join(source_path, "labels_sk")
+        labels_path_s = myutils.get_dir(labels_folder_path_s)
         artifacts_folder_path_s = source_path + '/artifacts/'
         artifacts_path_s = myutils.get_dir(artifacts_folder_path_s)
 
-    # callfunc = {
-    #     0: lambda: [np.fliplr(volume_rot), np.fliplr(label_rot)],
-    #     1: lambda: [np.flipud(volume_rot), np.flipud(label_rot)],
-    # }
     total_ori_volumes = 0
     total_volumes = 0
-    with tqdm(total=(len(volumes_path) + len(artifacts_path)), desc=f'original volume numbers') as pbar:
+    with tqdm(total=(len(volumes_path) + len(artifacts_path))*2, desc=f'original volume numbers') as pbar:
         for vpath, lpath in zip(volumes_path, labels_path):
             case = str(vpath).split(".")[0].split("-")[1]
             casename = task_name + case
@@ -297,6 +295,22 @@ def histogram_match_data(base, source, task_id, task_name, spacing, n_samples, i
             total_ori_volumes += 1
             pbar.update()
         axon_num = total_ori_volumes
+        print("axon_num: ", axon_num)
+        if match_flag:
+            for i in range(axon_num):
+                casename = casenames[i] + "m"
+                casenames.append(casename)
+                volume = datas_ori[i].copy()
+                label = labels_ori[i].copy()
+                match_ref_path = random.choice(volumes_path_s)
+                match_ref = myutils.read_tiff_stack(match_ref_path)
+                volume_match = match_histograms(volume, match_ref)
+                datas_ori.append(volume_match)
+                labels_ori.append(label)
+                total_ori_volumes += 1
+                pbar.update()
+        aug_axon_num = total_ori_volumes
+        print("aug_axon_num: ", aug_axon_num)
         if data_mix:
             for apath in artifacts_path:
                 case_a = str(apath).split(".")[0].split("-")[1]
@@ -313,45 +327,80 @@ def histogram_match_data(base, source, task_id, task_name, spacing, n_samples, i
                 labels_ori.append(np.zeros_like(label))
                 total_ori_volumes += 1
                 pbar.update()
-    print("Original data finish.")
-
-    with tqdm(total=(total_ori_volumes * n_samples), desc='volumes numbers') as pbar:
-        for index in range(total_ori_volumes):
-            volume = datas_ori[index].copy()
-            label = labels_ori[index].copy()
-            img_out_base = join(imagestr, casenames[index])
-            anno_out_base = join(labelstr, casenames[index])
-
+            junk_num = total_ori_volumes - aug_axon_num
+            print("junk_num", junk_num)
             if match_flag:
-                if index < axon_num:
-                    match_ref_path = random.choice(volumes_path_s)
-                else:
+                for i in range(junk_num):
+                    casename = casenames[i+aug_axon_num] + "m"
+                    casenames.append(casename)
+                    volume = datas_ori[i+aug_axon_num].copy()
+                    label = labels_ori[i+aug_axon_num].copy()
                     match_ref_path = random.choice(artifacts_path_s)
-                match_ref = myutils.read_tiff_stack(match_ref_path)
-                volume_match = match_histograms(volume, match_ref)
-                datas_ori[index] = volume_match
+                    match_ref = myutils.read_tiff_stack(match_ref_path)
+                    volume_match = match_histograms(volume, match_ref)
+                    datas_ori.append(volume_match)
+                    labels_ori.append(label)
+                    total_ori_volumes += 1
+                    pbar.update()
+                aug_junk_num = total_ori_volumes - aug_axon_num
             if cutmix:
-                # arti_cut_path = random.choice(artifacts_path)
-                # artifact_cut = myutils.read_tiff_stack(arti_cut_path)
-                if index < axon_num:
-                    artifact_cut = datas_ori[random.randint(axon_num, len(datas_ori) - 1)]
+                for j in range(axon_num):
+                    casename = casenames[j] + "c"
+                    casenames.append(casename)
+                    m_seed = random.randint(0, 1)
+                    volume = datas_ori[j+axon_num].copy() if match_flag and m_seed else datas_ori[j].copy()
+                    label = labels_ori[j+axon_num].copy() if match_flag and m_seed else labels_ori[j].copy()
+                    a_index = random.randint(0, junk_num) + aug_axon_num
+                    artifact_cut = datas_ori[a_index+junk_num] if match_flag and m_seed else datas_ori[a_index]
                     z = random.randint(0, label.shape[0])
                     x = random.randint(0, label.shape[1])
                     y = random.randint(0, label.shape[2])
                     artifact_chunk = artifact_cut[:z, :x, :y].copy()
                     volume[:z, :x, :y] = artifact_chunk
                     label[:z, :x, :y] = np.zeros_like(artifact_chunk)
-                    tifffile.imwrite(join(origin, casenames[index])+"_vol.tiff", np.array(volume).astype(np.uint16))
-                    tifffile.imwrite(join(origin, casenames[index]) + "_lab.tiff", np.array(label).astype(np.uint16))
-            # data, label_a = augment.data_augmentation(volume, label)  # do it later
-            # data = data[np.newaxis, ...].astype(np.float32)
-            # data = data / 6553
-            # label_a = label[np.newaxis, ...].astype(np.float32)
-            datas_ori[index] = volume
-            labels_ori[index] = label
-            # print("\n{}, {}\n".format(len(datas_ori), axon_num))
+                    tifffile.imwrite(join(origin, casename)+"_vol.tiff", np.array(volume).astype(np.uint16))
+                    tifffile.imwrite(join(origin, casename) + "_lab.tiff", np.array(label).astype(np.uint16))
+                    datas_ori.append(volume)
+                    labels_ori.append(label)
+                    total_ori_volumes += 1
+            if join:
+                for vpath_s, lpath_s in zip(volumes_path_s, labels_path_s):
+                    case = str(vpath_s).split(".")[0].split("-")[1]
+                    casename = task_name + case
+                    casenames.append(casename)
 
-            if index < axon_num:
+                    volume = myutils.read_tiff_stack(vpath_s)
+                    label = myutils.read_tiff_stack(lpath_s)
+                    if volume.shape[0] < input_dim or volume.shape[1] < input_dim \
+                            or volume.shape[2] < input_dim:
+                        continue
+                    datas_ori.append(volume)
+                    labels_ori.append(label)
+                    total_ori_volumes += 1
+                    pbar.update()
+                if data_mix:
+                    for apath_s in artifacts_path_s:
+                        case_a = str(apath_s).split(".")[0].split("-")[1]
+                        casename_a = task_name + "a" + case_a
+                        casenames.append(casename_a)
+
+                        ak_seed = random.randint(0, 3)
+                        artifact = myutils.read_tiff_stack(apath_s)
+                        if artifact.shape[0] < input_dim or artifact.shape[1] < input_dim \
+                                or artifact.shape[2] < input_dim:
+                            print(artifact.shape)
+                            continue
+                        datas_ori.append(artifact)
+                        labels_ori.append(np.zeros_like(label))
+                        total_ori_volumes += 1
+                        pbar.update()
+    print("{} data of original size finish.".format(total_ori_volumes))
+
+    with tqdm(total=(total_ori_volumes * n_samples), desc='volumes numbers') as pbar:
+        for index in range(total_ori_volumes):
+            img_out_base = join(imagestr, casenames[index])
+            anno_out_base = join(labelstr, casenames[index])
+            if index < aug_axon_num or index >= aug_axon_num + aug_junk_num:
                 volume = datas_ori[index].copy()
                 label = labels_ori[index].copy()
                 for j in range(n_samples):
@@ -364,16 +413,21 @@ def histogram_match_data(base, source, task_id, task_name, spacing, n_samples, i
                     volume_chunk = volume[z:z + input_dim, x:x + input_dim, y:y + input_dim].copy()
                     label_chunk = label[z:z + input_dim, x:x + input_dim, y:y + input_dim].copy()
                     # ------------------------------------------------------------------ #
-                    # data augmentation
-                    data, annotation = augment.data_augmentation(volume_chunk, label_chunk)
                     # if random.randint(0, 1) == 0:
                     #     volume_chunk = myutils.contrast_augmentation(volume_chunk, label_chunk, rad=15, N=3)
                     #
-                    # k_seed = random.randint(0, 3)
-                    # flip_seed = random.randint(0, 1)
-                    # volume_rot = np.rot90(np.swapaxes(volume_chunk, 0, 2), k=k_seed).swapaxes(2, 0)
-                    # label_rot = np.rot90(np.swapaxes(label_chunk, 0, 2), k=k_seed).swapaxes(2, 0)
-                    # data, annotation = callfunc[flip_seed]()
+                    # ---------------- rotation ---------------- #
+                    callfunc = {
+                        0: lambda: [np.fliplr(volume_rot), np.fliplr(label_rot)],
+                        1: lambda: [np.flipud(volume_rot), np.flipud(label_rot)],
+                    }
+                    k_seed = random.randint(0, 3)
+                    flip_seed = random.randint(0, 1)
+                    volume_rot = np.rot90(np.swapaxes(volume_chunk, 0, 2), k=k_seed).swapaxes(2, 0)
+                    label_rot = np.rot90(np.swapaxes(label_chunk, 0, 2), k=k_seed).swapaxes(2, 0)
+                    volume_chunk, label_chunk = callfunc[flip_seed]()
+                    # data augmentation
+                    data, annotation = augment.data_augmentation(volume_chunk, label_chunk)
                     # ------------------------------------------------------------------ #
 
                     # data_ori = ((data - data.min()) / (data.max() - data.min()))[np.newaxis, :, :, :]
@@ -393,7 +447,7 @@ def histogram_match_data(base, source, task_id, task_name, spacing, n_samples, i
                 continue
             else:
                 artifact = datas_ori[index].copy()
-                for k in range(max(1, int(len(volumes_path) / len(artifacts_path) * n_samples))):
+                for k in range(max(1, int(len(volumes_path) / len(artifacts_path) * n_samples / 2))):
                     a_out = join(img_out_base + str(k))
                     l_out = join(anno_out_base + str(k) + ".nii.gz")
                     casename_as = casenames[index] + str(k)
@@ -423,9 +477,9 @@ def histogram_match_data(base, source, task_id, task_name, spacing, n_samples, i
                     total_volumes += 1
                     pbar.update()
                 continue
-
-        # val_volume_path = join(base, "val", "volumes")
-        val_volume_path = join(source, "val", "volumes")
+        print("train {} cases finish".format(total_volumes))
+        val_volume_path = join(base, "val", "volumes")
+        # val_volume_path = join(source, "val", "volumes") if match_flag else join(base, "val", "volumes")
         vpaths = os.listdir(val_volume_path)
         for i, vpath in enumerate(vpaths):
             case = str(vpath).split(".")[0].split("-")[1]
@@ -485,7 +539,7 @@ def prepare_task(base, task_id, task_name, spacing):
 
     train_volume_path = join(base, "train", "volumes")
     train_label_path = join(base, "train", "labels")
-    val_volume_path = join(base, "val", "volumes")
+    val_volume_path = join(base, "train", "volumes")
 
     '''
     tpaths = os.listdir(train_volume_path)
@@ -559,11 +613,11 @@ def prepare_task(base, task_id, task_name, spacing):
 if __name__ == "__main__":
     base = "/media/root/data4/zyt/train/Renlab/"
     source = "/media/root/data4/zyt/train/Renlab/"
-    task_id = 7091
-    task_name = 'Renlab_match_cutmix'
+    task_id = 7096
+    task_name = 'Renlab_match_cutmix_nojunk'
     spacing = (1, 0.126, 0.126)
-    histogram_match_data(base, source, task_id, task_name, spacing, 10, 128,
-                         True, True, True, True)  # artifact mix, train, histogram match, cutmix
+    histogram_match_data(base, source, task_id, task_name, spacing, 6, 128,
+                         False, True, True, True, True)  # artifact mix, train, histogram match, cutmix, join(s&t)
     # make_data(source, task_id, task_name, spacing, 10, 128, True, True)  # for train
     # prepare_task(base, task_id, task_name, spacing)
 
